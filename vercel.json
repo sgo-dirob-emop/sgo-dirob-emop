@@ -1,0 +1,24 @@
+{
+  "cleanUrls": false,
+  "redirects": [
+    { "source": "/docs/:path*", "destination": "/", "permanent": false },
+    { "source": "/supabase/:path*", "destination": "/", "permanent": false },
+    { "source": "/netlify.toml", "destination": "/", "permanent": false },
+    { "source": "/vercel.json", "destination": "/", "permanent": false },
+    { "source": "/(CLAUDE|MEMORIA|README).md", "destination": "/", "permanent": false }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    },
+    {
+      "source": "/(|index.html|config.js)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
+  ]
+}

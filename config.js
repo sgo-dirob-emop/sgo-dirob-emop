@@ -3,6 +3,6 @@
 // A "anon key" é pública por natureza (a segurança fica nas regras do banco, em supabase/schema.sql).
 // Se ficar em branco, o sistema abre em "modo local" (dados só no navegador), como no protótipo.
 window.SGO_CONFIG = {
-  supabaseUrl: "",      // ex.: "https://abcdefghijkl.supabase.co"
-  supabaseAnonKey: ""   // ex.: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  supabaseUrl: "https://agssrmsvmdiyfhjbjood.supabase.co",
+  supabaseAnonKey: "sb_publishable_XPeh46Zng2dlSbkLWSgrSA_UDdwbQQm"
 };

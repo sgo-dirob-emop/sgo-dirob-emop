@@ -2,6 +2,14 @@
 
 ## Linha do tempo (mais recente no topo)
 
+### 01/10/2026 — Administração de usuários
+- Sistema no ar em https://sgo-dirob-emop.vercel.app, login real testado pelo usuário (admin: engenharia.mmxconstrucoes@gmail.com).
+- Menu **Usuários** completo (só admin): criar login com senha provisória, cargo, matrícula, lotação, telefone,
+  nível de acesso; editar; trocar e-mail; redefinir senha; desativar/reativar (ban no Auth + `perfis.ativo`); excluir.
+- Primeiro acesso obriga a criar senha própria (`perfis.trocar_senha`). Tela **Minha conta** para todos (nome, telefone, senha).
+- Banco: `supabase/002_usuarios.sql` (colunas novas em `perfis`, RLS exige usuário ativo, trava do último admin, auditoria de perfis).
+- Edge Function `admin-usuarios` (`supabase/functions/admin-usuarios/index.ts`) usa a service role no servidor; valida que quem chama é admin ativo.
+
 ### 01/10/2026 — Protótipo vira sistema online
 - Repositório criado a partir do protótipo feito no Claude Desktop (artifact "SGO-DIROB"; cópia em
   `docs/prototipo_original.html`).
@@ -23,6 +31,7 @@
 - [x] Projeto Supabase criado (`agssrmsvmdiyfhjbjood`, São Paulo) e `config.js` preenchido com a publishable key (01/10/2026).
 - [ ] Confirmar que `supabase/schema.sql` foi rodado e testar login real; publicar o site.
 - [x] Publicado na Vercel (time EMOP-DIROB, plano Hobby): **https://sgo-dirob-emop.vercel.app** — deploy automático a cada push no `main`; `vercel.json` desvia `/docs`, `/supabase` e os .md para a página inicial (01/10/2026).
+- [ ] Usuário rodar `002_usuarios.sql` e publicar a Edge Function `admin-usuarios` (Verify JWT desligado — a função valida sozinha).
 - [ ] Supabase > Authentication > URL Configuration: Site URL = https://sgo-dirob-emop.vercel.app e Redirect URL = https://sgo-dirob-emop.vercel.app/**.
 - [ ] Fotos: hoje ficam dentro do banco (jsonb, ~150 KB cada). Migrar para Supabase Storage quando o volume crescer.
 - [ ] Planilha contratual limitada a ~1.200 itens (limite herdado) — revisar agora que o banco aguenta mais.

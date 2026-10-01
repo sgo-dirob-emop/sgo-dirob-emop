@@ -12,6 +12,8 @@ planilha/memória/mapa de tempo/fotos, aditivos, prazos, alertas e geração dos
 | `index.html` | O sistema inteiro (telas, regras, documentos). |
 | `config.js` | Endereço e chave pública do banco Supabase. **Preencher antes de publicar.** |
 | `supabase/schema.sql` | Cria as tabelas, permissões e auditoria no Supabase. |
+| `supabase/002_usuarios.sql` | Administração de usuários (cargo, lotação, desativar, troca de senha). |
+| `supabase/functions/admin-usuarios/` | Função do servidor que cria e administra os logins. |
 | `manifest.json` | Permite "instalar" o sistema no celular. |
 | `docs/` | Manual da DIROB e o protótipo original feito no Claude Desktop. |
 

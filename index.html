@@ -221,31 +221,132 @@ function bancoSupabase(){return{
  collection(c){return{
   async get(){let docs=[],de=0;for(;;){const{data,error}=await sb.from("documentos").select("caminho,dados").eq("colecao",c).order("caminho").range(de,de+999);if(error)throw erroDB(error);docs=docs.concat(data.map(r=>snapDoc(r.caminho,r)));if(data.length<1000)break;de+=1000}return{docs}},
   onSnapshot(ok,er){let t=null;const ler=()=>this.get().then(ok,er||(()=>{}));ler();ouvirDB();const f=cam=>{if(colecaoDe(cam)===c){clearTimeout(t);t=setTimeout(ler,250)}};ouvintes.add(f);return()=>ouvintes.delete(f)}}}}}
-async function carregarPerfil(user){S.usuario={id:user.id,email:user.email,nome:user.email};
- const{data}=await sb.from("perfis").select("nome,papel").eq("id",user.id).maybeSingle();if(data){S.usuario.nome=data.nome||user.email;S.papel=data.papel}
- S.podeEscrever=S.papel!=="leitura";const u=$("#usuario");u.hidden=false;
- u.innerHTML=`<b>${esc(S.usuario.nome)}</b>${esc({admin:"Administrador",editor:"Pode lançar e alterar",leitura:"Somente consulta"}[S.papel]||S.papel)}<br><button id="bSair">Sair</button>`}
-async function conectarSupabase(){if(!sb)return null;
- let{data:{session}}=await sb.auth.getSession();
- if(!session){$("#login").hidden=false;$("#lEmail").focus();session=await new Promise(ok=>{
+function pedirLogin(msg){$("#login").hidden=false;$("#lErro").textContent=msg||"";$("#lSenha").value="";$("#lEmail").focus();return new Promise(ok=>{
   $("#fLogin").onsubmit=async ev=>{ev.preventDefault();$("#lErro").textContent="Entrando…";const{data,error}=await sb.auth.signInWithPassword({email:$("#lEmail").value.trim(),password:$("#lSenha").value});
-   if(error){$("#lErro").textContent=/invalid/i.test(error.message)?"E-mail ou senha incorretos.":"Não foi possível entrar: "+error.message;return}ok(data.session)};
+   if(error){$("#lErro").textContent=/banned/i.test(error.message)?"Seu acesso ao SGO-DIROB está desativado. Procure o administrador.":/invalid/i.test(error.message)?"E-mail ou senha incorretos.":"Não foi possível entrar: "+error.message;return}ok(data.session)};
   $("#lEsqueci").onclick=async()=>{const em=$("#lEmail").value.trim();if(!em){$("#lErro").textContent="Digite o e-mail primeiro.";return}
-   const{error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});$("#lErro").textContent=error?"Não foi possível enviar: "+error.message:"Enviamos um link para redefinir a senha."}})}
- $("#login").hidden=true;await carregarPerfil(session.user);
- sb.auth.onAuthStateChange(async(ev,s)=>{if(ev==="SIGNED_OUT")location.reload();if(ev==="PASSWORD_RECOVERY"){const n=prompt("Digite a nova senha (mínimo 8 caracteres):");if(n&&n.length>=8){const{error}=await sb.auth.updateUser({password:n});toast(error?"Não foi possível trocar a senha.":"Senha alterada.")}}});
+   const{error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});$("#lErro").textContent=error?"Não foi possível enviar: "+error.message:"Se o e-mail estiver cadastrado, chegará um link para redefinir a senha."}})}
+async function conectarSupabase(){if(!sb)return null;
+ let{data:{session}}=await sb.auth.getSession(),msg="";
+ for(;;){if(!session)session=await pedirLogin(msg);$("#login").hidden=true;
+  if(await carregarPerfil(session.user))break;session=null;msg="Seu acesso ao SGO-DIROB está desativado. Procure o administrador."}
+ sb.auth.onAuthStateChange(async(ev,s)=>{if(ev==="SIGNED_OUT")location.reload();if(ev==="PASSWORD_RECOVERY"){const n=prompt("Digite a nova senha (mínimo 8 caracteres):");if(n&&n.length>=8){const{error}=await sb.auth.updateUser({password:n});if(!error)sb.rpc("senha_trocada");toast(error?"Não foi possível trocar a senha.":"Senha alterada.")}}});
  return bancoSupabase()}
 document.addEventListener("click",ev=>{if(ev.target.id==="bSair"&&sb)sb.auth.signOut()});
 
-/* ===================== usuários (só administrador) ===================== */
-async function carregarPerfis(){const{data,error}=await sb.from("perfis").select("id,email,nome,papel").order("nome");if(error)return toast("Não foi possível carregar os usuários.");S.perfis=data;if(S.tela==="usuarios")render()}
-function tUsuarios(){if(S.papel!=="admin")return(S.tela="painel",tPainel());if(!S.perfis.length)carregarPerfis();
- return`<h1>Usuários</h1><p class="sub">Novos usuários são criados no Supabase (Authentication &gt; Users &gt; Add user) e entram como "Somente consulta". Aqui você define o que cada um pode fazer.</p>
- <div class="cartao" style="padding:0;overflow:hidden"><div class="tw"><table class="tabela"><tr><th>Nome</th><th>E-mail</th><th>Acesso</th></tr>
- ${S.perfis.map(p=>`<tr><td><input data-pnome="${esc(p.id)}" value="${esc(p.nome||"")}"></td><td>${esc(p.email)}</td><td><select data-papel="${esc(p.id)}" ${p.id===S.usuario.id?"disabled":""}>${[["leitura","Somente consulta"],["editor","Pode lançar e alterar"],["admin","Administrador"]].map(([k,t])=>`<option value="${k}" ${p.papel===k?"selected":""}>${t}</option>`).join("")}</select></td></tr>`).join("")||'<tr><td colspan="3" class="vazio">Carregando…</td></tr>'}</table></div></div>`}
-document.addEventListener("change",async ev=>{const t=ev.target;if(!sb||S.tela!=="usuarios")return;
- if(t.dataset.papel){const{error}=await sb.from("perfis").update({papel:t.value}).eq("id",t.dataset.papel);toast(error?"Não foi possível alterar.":"Acesso atualizado.");return carregarPerfis()}
- if(t.dataset.pnome){const{error}=await sb.from("perfis").update({nome:t.value.trim()}).eq("id",t.dataset.pnome);toast(error?"Não foi possível alterar.":"Nome atualizado.");return carregarPerfis()}});
+/* ===================== perfil do usuário logado ===================== */
+const PAPEL_NOME={admin:"Administrador",editor:"Pode lançar e alterar",leitura:"Somente consulta"};
+const PAPEL_DESC={admin:"Tudo, inclusive administrar usuários e modelos.",editor:"Cadastra obras, lança medições, aditivos e emite documentos.",leitura:"Vê tudo, não altera nada."};
+const CARGOS=["Diretor(a) de Obras","Assessor(a) da Diretoria","Coordenador(a) de COBRA","Gerente de obra","Fiscal de obra","Engenheiro(a)","Arquiteto(a)","Técnico(a)","Assistente administrativo","Estagiário(a)","Outro"];
+const LOTACOES=["DIROB (Diretoria)","1ª COBRA","2ª COBRA","3ª COBRA","4ª COBRA","1º DOBRA","2º DOBRA","3º DOBRA","4º DOBRA","5º DOBRA","6º DOBRA","7º DOBRA","8º DOBRA","Outro setor"];
+async function carregarPerfil(user){S.usuario={id:user.id,email:user.email,nome:user.email};
+ const{data}=await sb.from("perfis").select("*").eq("id",user.id).maybeSingle();
+ if(data&&data.ativo===false){await sb.auth.signOut();return false}
+ if(data){S.usuario={...S.usuario,...data,nome:data.nome||user.email};S.papel=data.papel}
+ S.podeEscrever=S.papel!=="leitura";sb.rpc("registrar_acesso").then(()=>{},()=>{});desenharUsuario();
+ if(data&&data.trocar_senha)await exigirTrocaSenha();return true}
+function desenharUsuario(){const u=$("#usuario");u.hidden=false;
+ u.innerHTML=`<b>${esc(S.usuario.nome)}</b>${esc(S.usuario.cargo||PAPEL_NOME[S.papel]||S.papel)}<br><button data-ir="conta">Minha conta</button> · <button id="bSair">Sair</button>`}
+function exigirTrocaSenha(){return new Promise(ok=>{const d=document.createElement("div");d.className="login";
+ d.innerHTML=`<form><h1>Crie a sua senha</h1><p>Por segurança, troque a senha provisória que recebeu do administrador por uma senha só sua.</p>
+ <label>Nova senha<input type="password" id="nsA" autocomplete="new-password" minlength="8" required></label>
+ <label>Repita a nova senha<input type="password" id="nsB" autocomplete="new-password" minlength="8" required></label>
+ <div class="erro" id="nsErro"></div><button class="btn" type="submit">Salvar e entrar</button></form>`;document.body.appendChild(d);d.querySelector("#nsA").focus();
+ d.querySelector("form").onsubmit=async ev=>{ev.preventDefault();const a=d.querySelector("#nsA").value,b=d.querySelector("#nsB").value,er=d.querySelector("#nsErro");
+  if(a.length<8)return void(er.textContent="Use pelo menos 8 caracteres.");if(a!==b)return void(er.textContent="As duas senhas não são iguais.");
+  er.textContent="Salvando…";const{error}=await sb.auth.updateUser({password:a});if(error)return void(er.textContent=/same|different/i.test(error.message)?"A nova senha precisa ser diferente da provisória.":"Não foi possível salvar: "+error.message);
+  await sb.rpc("senha_trocada");d.remove();toast("Senha criada. Bem-vindo(a)!");ok()}})}
+
+/* ===================== chamadas à função do servidor (criar/administrar logins) ===================== */
+async function adminUsuarios(corpo){const{data:{session}}=await sb.auth.getSession();if(!session)throw new Error("Sessão expirada. Faça login novamente.");
+ let r;try{r=await fetch(CFG.supabaseUrl+"/functions/v1/admin-usuarios",{method:"POST",headers:{"Content-Type":"application/json",apikey:CFG.supabaseAnonKey,Authorization:"Bearer "+session.access_token},body:JSON.stringify(corpo)})}
+ catch(e){throw new Error("Não foi possível falar com o servidor. A função admin-usuarios foi publicada no Supabase?")}
+ let j={};try{j=await r.json()}catch(e){}
+ if(r.status===404)throw new Error("A função admin-usuarios ainda não foi publicada no Supabase.");
+ if(!r.ok||j.erro)throw new Error(j.erro||j.message||j.msg||("Erro "+r.status));return j}
+
+/* ===================== Usuários (só administrador) ===================== */
+S.u={filtro:"",sel:null,novo:false,logins:{},carregando:false,senha:"",aviso:null};
+async function carregarPerfis(){if(S.u.carregando)return;S.u.carregando=true;
+ const{data,error}=await sb.from("perfis").select("*").order("nome");S.u.carregando=false;
+ if(error){toast("Não foi possível carregar os usuários.");return}S.perfis=data;S.perfisOk=true;
+ adminUsuarios({acao:"listar"}).then(j=>{S.u.logins={};(j.usuarios||[]).forEach(x=>S.u.logins[x.id]=x);if(S.tela==="usuarios")render()},()=>{});
+ if(S.tela==="usuarios")render()}
+const gerarSenha=()=>{const c="ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789",a=new Uint32Array(10);crypto.getRandomValues(a);return"Emop@"+[...a].map(x=>c[x%c.length]).join("").slice(0,6)};
+const dtHora=v=>v?new Date(v).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"nunca entrou";
+const opts=(l,v)=>`<option value="">Selecione</option>${l.map(x=>`<option ${x===v?"selected":""}>${esc(x)}</option>`).join("")}${v&&!l.includes(v)?`<option selected>${esc(v)}</option>`:""}`;
+const selPapel=(v,dis)=>`<select id="uPapel" ${dis?"disabled":""}>${Object.entries(PAPEL_NOME).map(([k,t])=>`<option value="${k}" ${v===k?"selected":""}>${t}</option>`).join("")}</select>`;
+function camposPerfil(p){return`<div class="grade">
+ <label class="req">Nome completo <b>*</b><input id="uNome" value="${esc(p.nome||"")}" autocomplete="off"></label>
+ <label>Matrícula<input id="uMat" value="${esc(p.matricula||"")}" autocomplete="off"></label>
+ <label>Cargo / função<select id="uCargo">${opts(CARGOS,p.cargo)}</select></label>
+ <label>Lotação<select id="uLot">${opts(LOTACOES,p.lotacao)}</select></label>
+ <label>Telefone<input id="uTel" value="${esc(p.telefone||"")}" inputmode="tel" autocomplete="off"></label></div>`}
+function tUsuarios(){if(S.papel!=="admin")return(S.tela="painel",tPainel());if(!S.perfisOk)carregarPerfis();
+ const f=S.u.filtro.toLowerCase(),l=S.perfis.filter(p=>!f||[p.nome,p.email,p.matricula,p.cargo,p.lotacao].join(" ").toLowerCase().includes(f)),
+  ativos=S.perfis.filter(p=>p.ativo!==false).length,sel=S.perfis.find(p=>p.id===S.u.sel);
+ let painel="";
+ if(S.u.novo)painel=`<div class="cartao" id="uPainel"><h2>Novo usuário</h2>${camposPerfil({})}
+  <div class="grade" style="margin-top:10px"><label class="req">E-mail de login <b>*</b><input id="uEmail" type="email" autocomplete="off"></label>
+  <label class="req">Senha provisória <b>*</b><input id="uSenha" value="${esc(S.u.senha)}" autocomplete="off"></label>
+  <label class="req">Acesso <b>*</b>${selPapel("leitura")}</label></div>
+  <p style="font-size:13px;color:var(--cinza)">A pessoa entra com este e-mail e a senha provisória e, no primeiro acesso, o sistema obriga a criar uma senha própria. Passe a senha provisória a ela pessoalmente ou por mensagem.</p>
+  <div class="linha"><button class="btn" data-ua="criar">Criar usuário</button><button class="btn sec" data-ua="gerar">Gerar outra senha</button><button class="btn sec" data-ua="fechar">Cancelar</button></div></div>`;
+ else if(sel){const eu=sel.id===S.usuario.id,lg=S.u.logins[sel.id]||{};painel=`<div class="cartao" id="uPainel"><div class="cab"><h2>${esc(sel.nome||sel.email)}</h2><div>${sel.ativo===false?'<span class="selo cr">desativado</span>':'<span class="selo ok">ativo</span>'}</div></div>
+  <p style="font-size:13px;color:var(--cinza);margin-top:0">Login: ${esc(sel.email)} · Último acesso: ${esc(dtHora(lg.ultimo_login||sel.ultimo_acesso))}${sel.trocar_senha?" · ainda não criou a senha própria":""}</p>
+  ${camposPerfil(sel)}<div class="grade" style="margin-top:10px"><label>Acesso${selPapel(sel.papel,eu)}</label></div>
+  <p style="font-size:13px;color:var(--cinza)">${eu?"Você não pode mudar o seu próprio acesso.":esc(PAPEL_DESC[sel.papel]||"")}</p>
+  <div class="linha"><button class="btn" data-ua="salvar">Salvar alterações</button><button class="btn sec" data-ua="fechar">Fechar</button></div>
+  <h2 style="margin-top:18px">Login</h2>
+  <div class="grade"><label>Trocar e-mail de login<input id="uEmailNovo" type="email" value="${esc(sel.email)}" autocomplete="off"></label><label>Nova senha provisória<input id="uSenhaNova" value="${esc(S.u.senha)}" autocomplete="off"></label></div>
+  <div class="linha" style="margin-top:10px"><button class="btn sec" data-ua="email">Salvar novo e-mail</button><button class="btn sec" data-ua="senha">Redefinir senha</button>
+  ${eu?"":sel.ativo===false?'<button class="btn sec" data-ua="reativar">Reativar acesso</button>':'<button class="btn sec" data-ua="desativar">Desativar acesso</button>'}${eu?"":'<button class="btn per" data-ua="excluir">Excluir usuário</button>'}</div>
+  <p style="font-size:13px;color:var(--cinza)">Desativar bloqueia o login na hora e mantém tudo o que a pessoa registrou. Prefira desativar a excluir quando alguém sai da DIROB.</p></div>`}
+ const aviso=S.u.aviso?`<div class="pend" style="background:var(--okbg)"><b>${esc(S.u.aviso.titulo)}</b><br>Login: <b>${esc(S.u.aviso.email)}</b> · Senha provisória: <b style="font-family:monospace;font-size:15px">${esc(S.u.aviso.senha)}</b><br>Anote e passe para a pessoa. Ela vai criar a senha própria no primeiro acesso. Esta senha não aparece de novo.<div class="linha" style="margin-top:8px"><button class="btn peq" data-ua="copiar">Copiar login e senha</button><button class="btn peq sec" data-ua="okaviso">Já anotei</button></div></div>`:"";
+ return`<div class="cab"><div><h1>Usuários</h1><p class="sub">${ativos} com acesso ativo de ${S.perfis.length} cadastrados. Clique numa linha para editar.</p></div><button class="btn" data-ua="novo">Novo usuário</button></div>
+ ${aviso}${painel}
+ <input id="uFiltro" placeholder="Filtrar por nome, e-mail, matrícula, cargo ou lotação" value="${esc(S.u.filtro)}" style="max-width:520px;margin-bottom:12px">
+ <div class="cartao" style="padding:0;overflow:hidden"><div class="tw"><table class="tabela"><tr><th>Nome</th><th>Cargo e lotação</th><th>Acesso</th><th>Último acesso</th><th>Situação</th></tr>
+ ${l.map(p=>{const lg=S.u.logins[p.id]||{};return`<tr class="lk" data-usel="${esc(p.id)}"><td><b>${esc(p.nome||"(sem nome)")}</b>${p.id===S.usuario.id?' <span class="selo in">você</span>':""}<br><small style="color:var(--cinza)">${esc(p.email)}${p.matricula?" · mat. "+esc(p.matricula):""}</small></td>
+  <td>${esc(p.cargo||"–")}<br><small style="color:var(--cinza)">${esc(p.lotacao||"")}</small></td><td>${esc(PAPEL_NOME[p.papel]||p.papel)}</td><td><small>${esc(dtHora(lg.ultimo_login||p.ultimo_acesso))}</small></td>
+  <td>${p.ativo===false?'<span class="selo cr">desativado</span>':p.trocar_senha?'<span class="selo av">aguardando 1º acesso</span>':'<span class="selo ok">ativo</span>'}</td></tr>`}).join("")||`<tr><td colspan="5" class="vazio">${S.perfisOk?"Nenhum usuário encontrado.":"Carregando…"}</td></tr>`}</table></div></div>
+ <div class="cartao"><h2>Níveis de acesso</h2>${Object.entries(PAPEL_NOME).map(([k,t])=>`<p style="margin:4px 0"><b>${t}:</b> ${PAPEL_DESC[k]}</p>`).join("")}</div>`}
+const valPerfil=()=>({nome:$("#uNome").value.trim(),matricula:$("#uMat").value.trim()||null,cargo:$("#uCargo").value||null,lotacao:$("#uLot").value||null,telefone:$("#uTel").value.trim()||null});
+document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-ua],[data-usel]");if(!t||!sb||S.tela!=="usuarios"||S.papel!=="admin")return;
+ if(t.dataset.usel){S.u.sel=t.dataset.usel;S.u.novo=false;S.u.senha=gerarSenha();render();$("#uPainel").scrollIntoView({behavior:"smooth",block:"start"});return}
+ const a=t.dataset.ua,sel=S.perfis.find(p=>p.id===S.u.sel);
+ if(a==="novo"){S.u.novo=true;S.u.sel=null;S.u.senha=gerarSenha();render();$("#uNome").focus();return}
+ if(a==="fechar"){S.u.novo=false;S.u.sel=null;return render()}
+ if(a==="okaviso"){S.u.aviso=null;return render()}
+ if(a==="copiar"){const v=S.u.aviso;try{await navigator.clipboard.writeText(`SGO-DIROB · ${location.origin}${location.pathname}\nLogin: ${v.email}\nSenha provisória: ${v.senha}`);toast("Copiado. Cole na mensagem para a pessoa.")}catch(e){toast("Não foi possível copiar. Anote manualmente.")}return}
+ if(a==="gerar"){S.u.senha=gerarSenha();$("#uSenha").value=S.u.senha;return}
+ const trava=async(fn,okMsg)=>{t.disabled=true;try{await fn();toast(okMsg);await carregarPerfis()}catch(e){toast(e.message||"Não foi possível concluir.")}finally{t.disabled=false}};
+ if(a==="criar"){const p=valPerfil(),email=$("#uEmail").value.trim(),senha=$("#uSenha").value;if(!p.nome)return toast("Informe o nome completo.");if(!email)return toast("Informe o e-mail de login.");if(senha.length<8)return toast("A senha provisória precisa ter pelo menos 8 caracteres.");
+  return trava(async()=>{await adminUsuarios({acao:"criar",...p,email,senha,papel:$("#uPapel").value});S.u.novo=false;S.u.aviso={titulo:"Usuário criado.",email,senha}},"Usuário criado.")}
+ if(!sel)return;
+ if(a==="salvar"){const p=valPerfil();if(!p.nome)return toast("Informe o nome completo.");if(sel.id!==S.usuario.id)p.papel=$("#uPapel").value;
+  return trava(async()=>{const{error}=await sb.from("perfis").update(p).eq("id",sel.id);if(error)throw new Error(/administrador ativo/i.test(error.message)?"O sistema precisa de pelo menos um administrador ativo.":"Não foi possível salvar.");if(sel.id===S.usuario.id){Object.assign(S.usuario,p);desenharUsuario()}},"Alterações salvas.")}
+ if(a==="email"){const email=$("#uEmailNovo").value.trim();if(email===sel.email)return toast("O e-mail não mudou.");return trava(()=>adminUsuarios({acao:"alterar_email",id:sel.id,email}),"E-mail de login alterado para "+email+".")}
+ if(a==="senha"){const senha=$("#uSenhaNova").value;if(senha.length<8)return toast("A senha precisa ter pelo menos 8 caracteres.");if(!confirmar(t,"Confirmar nova senha?"))return;
+  return trava(async()=>{await adminUsuarios({acao:"redefinir_senha",id:sel.id,senha});S.u.aviso={titulo:"Senha redefinida.",email:sel.email,senha}},"Senha redefinida.")}
+ if(a==="desativar"){if(!confirmar(t,"Clique de novo para desativar"))return;return trava(()=>adminUsuarios({acao:"desativar",id:sel.id}),"Acesso desativado.")}
+ if(a==="reativar")return trava(()=>adminUsuarios({acao:"reativar",id:sel.id}),"Acesso reativado.");
+ if(a==="excluir"){if(!confirmar(t,"Clique de novo para EXCLUIR"))return;return trava(async()=>{await adminUsuarios({acao:"excluir",id:sel.id});S.u.sel=null},"Usuário excluído.")}});
+document.addEventListener("input",ev=>{if(ev.target.id!=="uFiltro")return;S.u.filtro=ev.target.value;const p=ev.target.selectionStart;render();const f=$("#uFiltro");f.focus();f.setSelectionRange(p,p)});
+
+/* ===================== Minha conta (todos) ===================== */
+function tConta(){if(!sb||!S.usuario)return(S.tela="painel",tPainel());const u=S.usuario;
+ return`<h1>Minha conta</h1><p class="sub">${esc(u.email)} · ${esc(PAPEL_NOME[S.papel]||S.papel)}${u.cargo?" · "+esc(u.cargo):""}${u.lotacao?" · "+esc(u.lotacao):""}</p>
+ <div class="cartao"><h2>Meus dados</h2><div class="grade"><label>Nome completo<input id="cNome" value="${esc(u.nome||"")}"></label><label>Telefone<input id="cTel" value="${esc(u.telefone||"")}" inputmode="tel"></label></div>
+ <p style="font-size:13px;color:var(--cinza)">Cargo, matrícula, lotação e nível de acesso são alterados pelo administrador.</p><button class="btn" data-uc="dados">Salvar meus dados</button></div>
+ <div class="cartao"><h2>Trocar senha</h2><div class="grade"><label>Nova senha<input type="password" id="cSenhaA" autocomplete="new-password"></label><label>Repita a nova senha<input type="password" id="cSenhaB" autocomplete="new-password"></label></div>
+ <button class="btn" data-uc="senha" style="margin-top:10px">Trocar senha</button></div>`}
+document.addEventListener("click",async ev=>{const t=ev.target.closest("[data-uc]");if(!t||!sb||S.tela!=="conta")return;
+ if(t.dataset.uc==="dados"){const nome=$("#cNome").value.trim(),tel=$("#cTel").value.trim();if(!nome)return toast("Informe o nome.");
+  const{error}=await sb.rpc("atualizar_meus_dados",{p_nome:nome,p_telefone:tel});if(error)return toast("Não foi possível salvar.");S.usuario.nome=nome;S.usuario.telefone=tel;desenharUsuario();return toast("Dados salvos.")}
+ if(t.dataset.uc==="senha"){const a=$("#cSenhaA").value,b=$("#cSenhaB").value;if(a.length<8)return toast("Use pelo menos 8 caracteres.");if(a!==b)return toast("As duas senhas não são iguais.");
+  t.disabled=true;const{error}=await sb.auth.updateUser({password:a});t.disabled=false;if(error)return toast(/same|different/i.test(error.message)?"A nova senha precisa ser diferente da atual.":"Não foi possível trocar: "+error.message);
+  $("#cSenhaA").value=$("#cSenhaB").value="";return toast("Senha trocada.")}});
 async function iniciar(){render();let db=null;try{db=await conectarSupabase()}catch(e){toast("Não foi possível conectar ao banco online.")}
  if(db){S.db=db;$("#modo").textContent="Conectado ao banco da DIROB: as alterações aparecem para todos em tempo real.";
   db.collection("obras").onSnapshot(s=>{S.obras=s.docs.map(d=>({id:d.id,...d.data()}));if(!document.activeElement||!["INPUT","TEXTAREA","SELECT"].includes(document.activeElement.tagName))render()},()=>{});
@@ -254,7 +355,7 @@ async function iniciar(){render();let db=null;try{db=await conectarSupabase()}ca
 
 /* ===================== telas ===================== */
 function render(){$("#nav").innerHTML=[["painel","Painel da Diretoria"],["obras","Obras e contratos"],["modelos","Modelos de documento"],["ajuda","Como funciona"]].concat(S.papel==="admin"?[["usuarios","Usuários"]]:[]).map(([k,t])=>`<button class="${S.tela===k||(k==="obras"&&S.tela==="obra")?"on":""}" data-ir="${k}">${t}</button>`).join("");
- $("#main").innerHTML=({painel:tPainel,obras:tObras,obra:tObra,modelos:tModelos,ajuda:tAjuda,usuarios:tUsuarios}[S.tela]||tPainel)()}
+ $("#main").innerHTML=({painel:tPainel,obras:tObras,obra:tObra,modelos:tModelos,ajuda:tAjuda,usuarios:tUsuarios,conta:tConta}[S.tela]||tPainel)()}
 const etapaNome=id=>(ETAPAS.find(e=>e.id===id)||ETAPAS[0]).nome;
 function barras(c){return`<div class="duo"><div class="barra"><i style="width:${Math.min(100,c.pctFin*100)}%"></i></div><small>medido ${pct(c.pctFin)}</small><div class="barra t"><i style="width:${c.pctTempo*100}%"></i></div><small>prazo decorrido ${pct(c.pctTempo)}</small></div>`}
 function tPainel(){const ob=S.obras,at=ob.filter(o=>o.etapa!=="encerrada"),cs=at.map(calc),al=at.flatMap(o=>alertas(o).map(a=>({o,n:a[0],t:a[1]}))).sort((a,b)=>(a.n==="cr"?0:1)-(b.n==="cr"?0:1));

@@ -22,6 +22,12 @@ o Regimento Interno da EMOP e a Lei 13.303/2016. Usuário final: gerentes, fisca
 - Permissões: RLS no banco (`pode_editar()` = papel admin/editor). Erro de RLS vira `code:"invalid_argument"`
   e a UI avisa "acesso só de leitura". Papéis: `admin`, `editor`, `leitura`.
 - Tempo real: canal `postgres_changes` na tabela `documentos`.
+- Usuários: `perfis` (papel, cargo, matricula, lotacao, telefone, ativo, trocar_senha, ultimo_acesso). Criar/desativar/excluir
+  login exige a service role → só pela Edge Function `admin-usuarios` (`supabase/functions/`), chamada por `adminUsuarios()`.
+  Edição de dados do perfil e do papel vai direto em `perfis` (RLS: só admin). O usuário comum só muda nome/telefone via
+  rpc `atualizar_meus_dados`. Nunca coloque a service role no `index.html`/`config.js`.
+- SQL em ordem: `supabase/schema.sql`, depois `supabase/002_usuarios.sql` (numere os próximos 003, 004…).
+- Produção: https://sgo-dirob-emop.vercel.app (Vercel publica sozinho a cada push no `main`).
 
 ## Estrutura do `index.html`
 - `ETAPAS` — fluxo da obra (contrato → partida → execução → recebimento → encerrada), cada uma com POP,
@@ -30,7 +36,7 @@ o Regimento Interno da EMOP e a Lei 13.303/2016. Usuário final: gerentes, fisca
 - `DOCS` / `MODELOS_PADRAO` — os 24 documentos; `x` = campos novos pedidos, `fx` = efeito ao "registrar
   como emitido" (devolve dados à obra), `texto` com `{{campo}}` e `{{x.campo}}`.
 - Medição detalhada: `tMed`, `tMedir`, `confere`, `verBoletim`, `comprimir` (fotos 1280px JPEG).
-- Telas: `tPainel`, `tObras`, `tObra`, `tModelos`, `tAjuda`, `tUsuarios`. `render()` redesenha tudo.
+- Telas: `tPainel`, `tObras`, `tObra`, `tModelos`, `tAjuda`, `tUsuarios`, `tConta`. `render()` redesenha tudo.
 - Ações: delegação de eventos `click`/`change`/`input` no fim do script (`data-acao`, `data-doc`...).
 
 ## Regras

@@ -22,7 +22,7 @@
 ## Pendências / próximos passos
 - [x] Projeto Supabase criado (`agssrmsvmdiyfhjbjood`, São Paulo) e `config.js` preenchido com a publishable key (01/10/2026).
 - [ ] Confirmar que `supabase/schema.sql` foi rodado e testar login real; publicar o site.
-- [ ] Definir onde hospedar (domínio próprio? servidor da EMOP?).
+- [ ] Hospedagem: Netlify ligado ao GitHub (deploy automático a cada push no `main`), `netlify.toml` bloqueia `/docs` e `/supabase`. Depois: Site URL no Supabase.
 - [ ] Fotos: hoje ficam dentro do banco (jsonb, ~150 KB cada). Migrar para Supabase Storage quando o volume crescer.
 - [ ] Planilha contratual limitada a ~1.200 itens (limite herdado) — revisar agora que o banco aguenta mais.
 - [ ] Modelos oficiais da EMOP (Memorando de Início, boletim de medição) para substituir os textos provisórios.

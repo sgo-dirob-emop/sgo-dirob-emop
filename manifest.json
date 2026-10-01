@@ -1,0 +1,9 @@
+{
+  "name": "SGO-DIROB · Gestão de Obras · EMOP-RJ",
+  "short_name": "SGO-DIROB",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#F4F7FC",
+  "theme_color": "#003DA5",
+  "lang": "pt-BR"
+}

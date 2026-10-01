@@ -1,0 +1,30 @@
+# MEMÓRIA — SGO-DIROB (EMOP-RJ)
+
+## Linha do tempo (mais recente no topo)
+
+### 01/10/2026 — Protótipo vira sistema online
+- Repositório criado a partir do protótipo feito no Claude Desktop (artifact "SGO-DIROB"; cópia em
+  `docs/prototipo_original.html`).
+- Troca do banco do protótipo (artifact) por **Supabase**: login por e-mail/senha, perfis
+  (admin/editor/leitura), RLS, auditoria de alterações, tempo real. Sem configuração → modo local.
+- Tela **Usuários** (só admin) para definir o acesso; histórico da obra agora mostra quem fez.
+- Download dos documentos/boletins passa a ser pelo navegador.
+- Testado em Chromium com Supabase simulado: login, senha errada, criar obra, importar planilha,
+  recarregar e ler do banco.
+
+## Herdado do protótipo (já funciona)
+- Fluxo em 5 etapas com POPs, campos obrigatórios e checklist do Anexo B.
+- Medição completa: planilha contratual colada do Excel, memória de cálculo, mapa de tempo, fotos,
+  Administração Local proporcional, conferência automática, boletim de medição.
+- 24 documentos dos POP-01 a POP-10 com preenchimento só do que é novo e efeitos na obra.
+- Painel da Diretoria, alertas, relatório mensal.
+
+## Pendências / próximos passos
+- [ ] Usuário criar o projeto Supabase, rodar `supabase/schema.sql`, preencher `config.js`, publicar.
+- [ ] Definir onde hospedar (domínio próprio? servidor da EMOP?).
+- [ ] Fotos: hoje ficam dentro do banco (jsonb, ~150 KB cada). Migrar para Supabase Storage quando o volume crescer.
+- [ ] Planilha contratual limitada a ~1.200 itens (limite herdado) — revisar agora que o banco aguenta mais.
+- [ ] Modelos oficiais da EMOP (Memorando de Início, boletim de medição) para substituir os textos provisórios.
+- [ ] Nomes do Diretor e Coordenadores nas assinaturas.
+- [ ] Cronograma físico-financeiro mês a mês (previsto x realizado no painel).
+- [ ] Separar a obra de exemplo ("EXEMPLO · Reforma de Delegacia") — existia só no banco do artifact, não veio junto.

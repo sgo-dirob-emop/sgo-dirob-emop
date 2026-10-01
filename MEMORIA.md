@@ -22,7 +22,8 @@
 ## Pendências / próximos passos
 - [x] Projeto Supabase criado (`agssrmsvmdiyfhjbjood`, São Paulo) e `config.js` preenchido com a publishable key (01/10/2026).
 - [ ] Confirmar que `supabase/schema.sql` foi rodado e testar login real; publicar o site.
-- [ ] Hospedagem: Vercel ligado ao GitHub (deploy automático a cada push no `main`); `vercel.json` desvia `/docs`, `/supabase` e os .md para a página inicial. Há também `netlify.toml` como alternativa. Depois: Site URL no Supabase.
+- [x] Publicado na Vercel (time EMOP-DIROB, plano Hobby): **https://sgo-dirob-emop.vercel.app** — deploy automático a cada push no `main`; `vercel.json` desvia `/docs`, `/supabase` e os .md para a página inicial (01/10/2026).
+- [ ] Supabase > Authentication > URL Configuration: Site URL = https://sgo-dirob-emop.vercel.app e Redirect URL = https://sgo-dirob-emop.vercel.app/**.
 - [ ] Fotos: hoje ficam dentro do banco (jsonb, ~150 KB cada). Migrar para Supabase Storage quando o volume crescer.
 - [ ] Planilha contratual limitada a ~1.200 itens (limite herdado) — revisar agora que o banco aguenta mais.
 - [ ] Modelos oficiais da EMOP (Memorando de Início, boletim de medição) para substituir os textos provisórios.
